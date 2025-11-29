@@ -23,7 +23,11 @@ echo "🚀 Running container for user: $user"
 export XAUTH=${XAUTH:-$HOME/.Xauthority}
 
 # Allow container to use the host X11 server
-xhost +local:docker
+if command -v xhost &> /dev/null; then
+    xhost +local:docker || echo "Warning: xhost command failed, GUI might not work."
+else
+    echo "Warning: xhost not found, skipping X11 forwarding setup."
+fi
 
 echo "🏃 Starting container..."
 # Run Docker container

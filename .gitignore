@@ -12,12 +12,19 @@ edits/
 build/
 .env
 *.yml
-*.ipynb
+# *.ipynb
 
 # OptiX SDK
-NVIDIA-OptiX-SDK-*
+# NVIDIA-OptiX-SDK-*
 
 # CUDA
 *.o
 *.cu.ptx
 *.so
+
+# VSCode
+.vscode/
+
+# Projet Vision
+!genie/data/Projet Vision 2025_2026.pdf
+Projet Vision 2025_2026.pdf
