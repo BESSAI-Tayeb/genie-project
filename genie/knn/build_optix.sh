@@ -86,6 +86,10 @@ CXX_STD="-std=c++17"
 BUILD_DIR="build"
 mkdir -p $BUILD_DIR
 
+# GPU ARCH flags for nvcc
+GPU_FLAGS="--gpu-architecture=compute_${CC/./} --gpu-code=${CUDA_ARCH}"
+RDC_FLAG="-rdc=true"
+
 # === 1. Compile OptiX Shader to PTX ===
 echo "📦 Compiling shaders.cu to PTX..."
 nvcc -ptx -arch=${CUDA_ARCH} -o ${BUILD_DIR}/shaders.ptx shaders.cu \
@@ -93,15 +97,16 @@ nvcc -ptx -arch=${CUDA_ARCH} -o ${BUILD_DIR}/shaders.ptx shaders.cu \
 
 # === 2. Compile CUDA Source ===
 echo "🔧 Compiling KNN.cu..."
-nvcc -Xcompiler -fPIC -c KNN.cu -o ${BUILD_DIR}/KNN.o \
-  --gpu-architecture=compute_${CC/./} --gpu-code=${CUDA_ARCH} \
+nvcc -dc -Xcompiler -fPIC -c KNN.cu -o ${BUILD_DIR}/KNN.o \
+  ${GPU_FLAGS} ${RDC_FLAG} \
   -I${OPTIX_INCLUDE} -I${CUDA_INCLUDE} -I${THRUST_INCLUDE} \
   ${ABI_FLAG} ${CXX_STD}
 
 # === Compile bindings.cpp (host + CUDA-aware using nvcc) ===
 echo "🔗 Compiling bindings.cpp with nvcc..."
-nvcc -c -Xcompiler -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
+nvcc -dc -c -Xcompiler -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
   -std=c++17 ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_INCLUDE} \
+  ${GPU_FLAGS} ${RDC_FLAG} \
   -I${CUDA_INCLUDE} -I${OPTIX_INCLUDE} -I${THRUST_INCLUDE} -I${PYTORCH_DIR} -I${PYTORCH_API_DIR} \
   -I${TORCH_LIB_DIR} \
   -D_GLIBCXX_USE_CXX11_ABI=${TORCH_CXX11_ABI}
@@ -110,6 +115,7 @@ nvcc -c -Xcompiler -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
 echo "🔗 Linking shared library with nvcc..."
 nvcc -shared -Xcompiler -fPIC ${BUILD_DIR}/bindings.o ${BUILD_DIR}/KNN.o -o optix_knn.so \
   ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_LDFLAGS} \
+  ${GPU_FLAGS} ${RDC_FLAG} \
   -I${CUDA_INCLUDE} -I${OPTIX_INCLUDE} -I${PYTORCH_DIR} -I${PYTORCH_API_DIR} \
   -L${TORCH_LIB_DIR} -L${CUDA_LIB_DIR} \
   -ltorch -ltorch_cpu -ltorch_python -lc10 -lcudart -lcuda \
