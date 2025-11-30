@@ -739,7 +739,7 @@ extern "C" bool CUDA_KNN_KNeighbors(
 // CUDA_KNN_Destroy                                                                                *
 // *************************************************************************************************
 
-bool CUDA_KNN_Destroy(S_CUDA_KNN* knn) {
+extern "C" bool CUDA_KNN_Destroy(S_CUDA_KNN* knn) {
 	cudaError_t error_CUDA;
 	OptixResult error_OptiX;
 	S_CUDA_KNN cknn = *knn;
