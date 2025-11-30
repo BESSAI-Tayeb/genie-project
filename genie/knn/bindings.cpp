@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <torch/extension.h>  // <-- Add this for torch::Tensor
-#include "Header.cuh"
+#include "knn_api.h"
 
 namespace py = pybind11;
 
