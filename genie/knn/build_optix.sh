@@ -72,8 +72,9 @@ nvcc -ptx -arch=${CUDA_ARCH} -o ${BUILD_DIR}/shaders.ptx shaders.cu \
 # === 2. Compile CUDA Source ===
 echo "🔧 Compiling KNN.cu..."
 nvcc -Xcompiler -fPIC -c KNN.cu -o ${BUILD_DIR}/KNN.o \
-  --gpu-architecture=compute_86 --gpu-code=${CUDA_ARCH} \
-  -I${OPTIX_INCLUDE} -I${CUDA_INCLUDE} ${ABI_FLAG} ${CXX_STD}
+  --gpu-architecture=compute_${CC/./} --gpu-code=${CUDA_ARCH} \
+  -I${OPTIX_INCLUDE} -I${CUDA_INCLUDE} -I${THRUST_INCLUDE} \
+  ${ABI_FLAG} ${CXX_STD}
 
 # === 3. Compile and link shared Python extension ===
 echo "🔗 Compiling bindings.cpp to shared object..."
@@ -89,4 +90,4 @@ g++ -shared -fPIC bindings.cpp ${BUILD_DIR}/KNN.o -o optix_knn.so \
   -ltorch -ltorch_cpu -ltorch_python -lc10 -lcuda \
   -Wl,-rpath=${TORCH_LIB_DIR}
 
-echo "✅ Build complete. Output: build/optix_knn.so"
+echo "✅ Build complete. Output: optix_knn.so"
