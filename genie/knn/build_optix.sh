@@ -70,6 +70,13 @@ else
 fi
 echo "Python includes: $PYTHON_INCLUDE"
 
+# Convert python LDFLAGS for nvcc: nvcc doesn't like '-Wl,-rpath,PATH'
+PYTHON_LDFLAGS_NVCC="$PYTHON_LDFLAGS"
+if echo "$PYTHON_LDFLAGS" | grep -q "-Wl,-rpath,"; then
+  # Replace -Wl,-rpath,PATH with -Xlinker -rpath -Xlinker PATH for nvcc
+  PYTHON_LDFLAGS_NVCC=$(echo "$PYTHON_LDFLAGS" | sed -E 's/-Wl,-rpath,([^ ]+)/-Xlinker -rpath -Xlinker \1/g')
+fi
+
 # === Auto-detect ABI Flag ===
 echo "🔍 Detecting PyTorch ABI flag..."
 TORCH_CXX11_ABI=$($PYTHON_BIN -c "import torch; print(int(torch._C._GLIBCXX_USE_CXX11_ABI))")
@@ -114,11 +121,11 @@ nvcc -dc -c -Xcompiler -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
 # === Link Everything Together using nvcc (handles CUDA runtime libraries) ===
 echo "🔗 Linking shared library with nvcc..."
 nvcc -shared -Xcompiler -fPIC ${BUILD_DIR}/bindings.o ${BUILD_DIR}/KNN.o -o optix_knn.so \
-  ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_LDFLAGS} \
+  ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_LDFLAGS_NVCC} \
   ${GPU_FLAGS} ${RDC_FLAG} \
   -I${CUDA_INCLUDE} -I${OPTIX_INCLUDE} -I${PYTORCH_DIR} -I${PYTORCH_API_DIR} \
   -L${TORCH_LIB_DIR} -L${CUDA_LIB_DIR} \
   -ltorch -ltorch_cpu -ltorch_python -lc10 -lcudart -lcuda \
-  -Wl,-rpath,${TORCH_LIB_DIR}
+  -Xlinker -rpath -Xlinker ${TORCH_LIB_DIR}
 
 echo "✅ Build complete! Output: optix_knn.so"
