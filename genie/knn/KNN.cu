@@ -1,4 +1,6 @@
 #include "Header.cuh"
+#include <unistd.h>
+#include <errno.h>
 
 // !!! !!! !!!
 #include "optix_function_table_definition.h"
@@ -9,6 +11,8 @@
 // *************************************************************************************************
 
 extern "C" bool CUDA_KNN_Init(float chi_square_squared_radius, S_CUDA_KNN* knn) {
+	fprintf(stderr, "[CUDA_KNN_Init] start\n");
+	char cwd[1024]; if (getcwd(cwd, sizeof(cwd)) != NULL) fprintf(stderr, "[CUDA_KNN_Init] cwd=%s\n", cwd);
 
 	cudaError_t error_CUDA;
 	OptixResult error_OptiX;
@@ -17,16 +21,17 @@ extern "C" bool CUDA_KNN_Init(float chi_square_squared_radius, S_CUDA_KNN* knn) 
 	S_CUDA_KNN cknn = *knn;
 
 	error_CUDA = cudaSetDevice(0);
-	if (error_CUDA != cudaSuccess) printf("An error occurred... .");
+	if (error_CUDA != cudaSuccess) { fprintf(stderr, "[CUDA_KNN_Init] cudaSetDevice failed: %d\n", error_CUDA); printf("An error occurred... ."); return false; }
+	else { fprintf(stderr, "[CUDA_KNN_Init] cudaSetDevice OK\n"); }
 
 	// *********************************************************************************************
 
 	error_OptiX = optixInit();
-	if (error_OptiX != OPTIX_SUCCESS) return false;
+	if (error_OptiX != OPTIX_SUCCESS) { fprintf(stderr, "[CUDA_KNN_Init] optixInit failed: %d\n", error_OptiX); return false; } else { fprintf(stderr, "[CUDA_KNN_Init] optixInit OK\n"); }
 
 	CUcontext cudaContext;
 	error_CUDA_Driver_API = cuCtxGetCurrent(&cudaContext);
-	if (error_CUDA_Driver_API != CUDA_SUCCESS) return false;
+	if (error_CUDA_Driver_API != CUDA_SUCCESS) { fprintf(stderr, "[CUDA_KNN_Init] cuCtxGetCurrent failed: %d\n", error_CUDA_Driver_API); return false; } else { fprintf(stderr, "[CUDA_KNN_Init] cuCtxGetCurrent OK\n"); }
 
 	error_OptiX = optixDeviceContextCreate(cudaContext, 0, &cknn.optixContext);
 	if (error_OptiX != OPTIX_SUCCESS) return false;
@@ -34,7 +39,7 @@ extern "C" bool CUDA_KNN_Init(float chi_square_squared_radius, S_CUDA_KNN* knn) 
 	// *********************************************************************************************
 
 	FILE *f = fopen("genie/knn/build/shaders.ptx", "rb");
-	if (!f) return false;
+	if (!f) { fprintf(stderr, "[CUDA_KNN_Init] failed to open shaders.ptx (genie/knn/build/shaders.ptx) errno=%d\n", errno); return false; } else { fprintf(stderr, "[CUDA_KNN_Init] opened shaders.ptx OK\n"); }
 	fseek(f, 0, SEEK_END);
 	int ptxCodeSize = ftell(f);
 	fseek(f, 0, SEEK_SET);
@@ -71,7 +76,7 @@ extern "C" bool CUDA_KNN_Init(float chi_square_squared_radius, S_CUDA_KNN* knn) 
 		NULL, NULL,
 		&cknn.module
 	);
-	if (error_OptiX != OPTIX_SUCCESS) return false;
+	if (error_OptiX != OPTIX_SUCCESS) { fprintf(stderr, "[CUDA_KNN_Init] optixModuleCreate failed: %d\n", error_OptiX); return false; } else { fprintf(stderr, "[CUDA_KNN_Init] optixModuleCreate OK\n"); }
 
 	free(ptxCode);
 
