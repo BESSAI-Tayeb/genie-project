@@ -98,25 +98,21 @@ nvcc -Xcompiler -fPIC -c KNN.cu -o ${BUILD_DIR}/KNN.o \
   -I${OPTIX_INCLUDE} -I${CUDA_INCLUDE} -I${THRUST_INCLUDE} \
   ${ABI_FLAG} ${CXX_STD}
 
-# === Compile bindings.cpp (host code only) ===
-echo "🔗 Compiling bindings.cpp..."
-g++ -c -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
-    ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} \
-    ${PYTHON_INCLUDE} \
-    -I${CUDA_INCLUDE} \
-    -I${OPTIX_INCLUDE} \
-    -I${THRUST_INCLUDE} \
-    -I${PYTORCH_DIR} \
-    -I${PYTORCH_API_DIR}
+# === Compile bindings.cpp (host + CUDA-aware using nvcc) ===
+echo "🔗 Compiling bindings.cpp with nvcc..."
+nvcc -c -Xcompiler -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
+  -std=c++17 ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_INCLUDE} \
+  -I${CUDA_INCLUDE} -I${OPTIX_INCLUDE} -I${THRUST_INCLUDE} -I${PYTORCH_DIR} -I${PYTORCH_API_DIR} \
+  -I${TORCH_LIB_DIR} \
+  -D_GLIBCXX_USE_CXX11_ABI=${TORCH_CXX11_ABI}
 
-# === Link Everything Together ===
-echo "🔗 Linking shared library..."
-g++ -shared ${BUILD_DIR}/bindings.o ${BUILD_DIR}/KNN.o -o optix_knn.so \
-    ${CXX_STD} ${ABI_FLAG} \
-    ${PYTHON_LDFLAGS} \
-    -L${TORCH_LIB_DIR} \
-    -L${CUDA_LIB_DIR} \
-    -ltorch -ltorch_cpu -ltorch_python -lc10 -lcuda \
-    -Wl,-rpath=${TORCH_LIB_DIR}
+# === Link Everything Together using nvcc (handles CUDA runtime libraries) ===
+echo "🔗 Linking shared library with nvcc..."
+nvcc -shared -Xcompiler -fPIC ${BUILD_DIR}/bindings.o ${BUILD_DIR}/KNN.o -o optix_knn.so \
+  ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} ${PYTHON_LDFLAGS} \
+  -I${CUDA_INCLUDE} -I${OPTIX_INCLUDE} -I${PYTORCH_DIR} -I${PYTORCH_API_DIR} \
+  -L${TORCH_LIB_DIR} -L${CUDA_LIB_DIR} \
+  -ltorch -ltorch_cpu -ltorch_python -lc10 -lcudart -lcuda \
+  -Wl,-rpath,${TORCH_LIB_DIR}
 
 echo "✅ Build complete! Output: optix_knn.so"
