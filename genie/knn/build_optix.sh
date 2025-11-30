@@ -46,7 +46,18 @@ PYTORCH_API_DIR="$PYTORCH_DIR/torch/csrc/api/include"
 PYTHON_SITE_PACKAGES=$($PYTHON_BIN -c "import site; print(site.getsitepackages()[0])")
 TORCH_LIB_DIR="$PYTHON_SITE_PACKAGES/torch/lib"
 PYBIND11_INCLUDES=$($PYTHON_BIN -m pybind11 --includes)
-PYTHON_EXT_SUFFIX=$($PYTHON_BIN-config --extension-suffix)
+
+# Get Python include path
+if command -v python3-config &> /dev/null; then
+    PYTHON_INCLUDE=$(python3-config --includes)
+    PYTHON_LDFLAGS=$(python3-config --ldflags)
+else
+    PYTHON_VERSION=$($PYTHON_BIN -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+    PYTHON_INCLUDE_DIR=$($PYTHON_BIN -c "from sysconfig import get_paths; print(get_paths()['include'])")
+    PYTHON_INCLUDE="-I${PYTHON_INCLUDE_DIR}"
+    PYTHON_LDFLAGS="-lpython${PYTHON_VERSION}"
+fi
+echo "Python includes: $PYTHON_INCLUDE"
 
 # === Auto-detect ABI Flag ===
 echo "🔍 Detecting PyTorch ABI flag..."
@@ -76,18 +87,25 @@ nvcc -Xcompiler -fPIC -c KNN.cu -o ${BUILD_DIR}/KNN.o \
   -I${OPTIX_INCLUDE} -I${CUDA_INCLUDE} -I${THRUST_INCLUDE} \
   ${ABI_FLAG} ${CXX_STD}
 
-# === 3. Compile and link shared Python extension ===
-echo "🔗 Compiling bindings.cpp to shared object..."
-g++ -shared -fPIC bindings.cpp ${BUILD_DIR}/KNN.o -o optix_knn.so \
-  ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} \
-  -I${CUDA_INCLUDE} \
-  -I${OPTIX_INCLUDE} \
-  -I${THRUST_INCLUDE} \
-  -I${PYTORCH_DIR} \
-  -I${PYTORCH_API_DIR} \
-  -L${TORCH_LIB_DIR} \
-  -L${CUDA_LIB_DIR} \
-  -ltorch -ltorch_cpu -ltorch_python -lc10 -lcuda \
-  -Wl,-rpath=${TORCH_LIB_DIR}
+# === Compile bindings.cpp (host code only) ===
+echo "🔗 Compiling bindings.cpp..."
+g++ -c -fPIC bindings.cpp -o ${BUILD_DIR}/bindings.o \
+    ${CXX_STD} ${ABI_FLAG} ${PYBIND11_INCLUDES} \
+    ${PYTHON_INCLUDE} \
+    -I${CUDA_INCLUDE} \
+    -I${OPTIX_INCLUDE} \
+    -I${THRUST_INCLUDE} \
+    -I${PYTORCH_DIR} \
+    -I${PYTORCH_API_DIR}
 
-echo "✅ Build complete. Output: optix_knn.so"
+# === Link Everything Together ===
+echo "🔗 Linking shared library..."
+g++ -shared ${BUILD_DIR}/bindings.o ${BUILD_DIR}/KNN.o -o optix_knn.so \
+    ${CXX_STD} ${ABI_FLAG} \
+    ${PYTHON_LDFLAGS} \
+    -L${TORCH_LIB_DIR} \
+    -L${CUDA_LIB_DIR} \
+    -ltorch -ltorch_cpu -ltorch_python -lc10 -lcuda \
+    -Wl,-rpath=${TORCH_LIB_DIR}
+
+echo "✅ Build complete! Output: optix_knn.so"
