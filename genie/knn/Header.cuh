@@ -66,4 +66,4 @@ extern "C" bool CUDA_KNN_KNeighbors(
 	int *indices,
 	S_CUDA_KNN* knn
 );
-bool CUDA_KNN_Destroy(S_CUDA_KNN* cknn);
+extern "C" bool CUDA_KNN_Destroy(S_CUDA_KNN* cknn);
