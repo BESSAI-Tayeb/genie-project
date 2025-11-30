@@ -2,6 +2,17 @@
 
 set -e  # Exit on error
 
+# If the machine doesn't have CUDA/NVidia, let the user skip this build.
+# The script will still work if you rely on the Python CPU fallback (knn_algorithms.py).
+# To force a CUDA build even if the checks fail, set the environment variable FORCE_CUDA=1.
+if [ -z "$FORCE_CUDA" ]; then
+  if ! command -v nvcc >/dev/null 2>&1 || ! command -v nvidia-smi >/dev/null 2>&1; then
+    echo "nvcc or nvidia-smi not found. Skipping OptiX/CUDA build in this environment."
+    echo "To force a build attempt, set FORCE_CUDA=1 and re-run the script (not recommended without CUDA).")
+    exit 0
+  fi
+fi
+
 # === Find GPU Compute Capability ===
 echo "🔍 Detecting GPU Compute Capability..."
 CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n1)
