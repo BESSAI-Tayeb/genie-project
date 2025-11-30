@@ -8,7 +8,7 @@ set -e  # Exit on error
 if [ -z "$FORCE_CUDA" ]; then
   if ! command -v nvcc >/dev/null 2>&1 || ! command -v nvidia-smi >/dev/null 2>&1; then
     echo "nvcc or nvidia-smi not found. Skipping OptiX/CUDA build in this environment."
-    echo "To force a build attempt, set FORCE_CUDA=1 and re-run the script (not recommended without CUDA).")
+    echo "To force a build attempt, set FORCE_CUDA=1 and re-run the script (not recommended without CUDA)."
     exit 0
   fi
 fi
