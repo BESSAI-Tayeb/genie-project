@@ -72,7 +72,7 @@ echo "Python includes: $PYTHON_INCLUDE"
 
 # Convert python LDFLAGS for nvcc: nvcc doesn't like '-Wl,-rpath,PATH'
 PYTHON_LDFLAGS_NVCC="$PYTHON_LDFLAGS"
-if echo "$PYTHON_LDFLAGS" | grep -q "-Wl,-rpath,"; then
+if echo "$PYTHON_LDFLAGS" | grep -q -- "-Wl,-rpath,"; then
   # Replace -Wl,-rpath,PATH with -Xlinker -rpath -Xlinker PATH for nvcc
   PYTHON_LDFLAGS_NVCC=$(echo "$PYTHON_LDFLAGS" | sed -E 's/-Wl,-rpath,([^ ]+)/-Xlinker -rpath -Xlinker \1/g')
 fi
